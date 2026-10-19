@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#F6F2EA"/>
+  <g transform="translate(0.0 0.0) scale(1.0000)">
+    <g style="isolation:isolate">
+      <path d="M21.64 85.36Q14.64 85.36 14.64 78.36L14.64 21.64Q14.64 14.64 21.64 14.64L78.36 14.64Q85.36 14.64 85.36 21.64L85.36 78.36Q85.36 85.36 78.36 85.36Z" fill="#F29A0B" transform="translate(150 62) scale(2.25)"/>
+      <path d="M9.00 93.30Q0.00 93.30 4.50 85.51L45.50 14.49Q50.00 6.70 54.50 14.49L95.50 85.51Q100.00 93.30 91.00 93.30Z" fill="#EC4A33" transform="translate(52 182) scale(2.45)" style="mix-blend-mode:multiply"/>
+      <path d="M35.07 87.99Q28.07 87.99 24.57 81.93L9.63 56.06Q6.13 50.00 9.63 43.94L24.57 18.07Q28.07 12.01 35.07 12.01L64.93 12.01Q71.93 12.01 75.43 18.07L90.37 43.94Q93.87 50.00 90.37 56.06L75.43 81.93Q71.93 87.99 64.93 87.99Z" fill="#2E63E6" transform="translate(212 186) scale(2.45)" style="mix-blend-mode:multiply"/>
+    </g>
+  </g>
+</svg>
