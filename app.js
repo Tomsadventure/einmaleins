@@ -47,6 +47,7 @@ function load() {
     mastered: d.mastered || {},
     mixRows: Array.isArray(d.mixRows) && d.mixRows.length ? d.mixRows.filter(r => ROWS.includes(r)) : ROWS.slice(),
     hintClosed: !!d.hintClosed,
+    installed: !!d.installed,
   };
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* egal */ } }
@@ -167,6 +168,7 @@ const ICON = {
   shuffle: I('<path d="M4 7h3.5c4 0 5 10 9 10H20M4 17h3.5c1.6 0 2.7-1.6 3.6-3.5M13 10.5c.9-1.9 2-3.5 3.5-3.5H20"/><path d="M17.5 4.5L20 7l-2.5 2.5M17.5 14.5L20 17l-2.5 2.5"/>'),
   target: I('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/>'),
   share: I('<path d="M12 15V4M8 7.5L12 3.5l4 4"/><path d="M6 11v8.5h12V11"/>'),
+  install: I('<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M12 7.5v7M9 11.5l3 3 3-3"/>'),
 };
 
 /* ==================================================================== Ton
@@ -495,7 +497,7 @@ function homeHTML() {
       ${mixTileHTML()}
     </section>
     ${hard.length ? hardHTML(hard) : ''}
-    ${iosHintHTML()}
+    <div id="install-home">${installHomeHTML()}</div>
     <footer class="foot">Mal-, Geteilt- und Lücken-Aufgaben · funktioniert auch ohne Internet</footer>
   </div>`;
 }
@@ -534,15 +536,62 @@ function hardHTML(hard) {
     <button class="btn primary" data-act="start-hard">${ICON.play}<span>Üben</span></button>
   </section>`;
 }
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const standalone = () => navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-function iosHintHTML() {
-  if (!isIOS || standalone() || S.hintClosed) return '';
-  return `<section class="hint card">
-    <span class="hint-ic">${ICON.share}</span>
-    <p><b>Tipp:</b> In Safari auf <b>Teilen</b> und dann <b>»Zum Home-Bildschirm«</b> tippen – dann ist die App wie eine echte App da und funktioniert auch ohne Internet.</p>
-    <button class="icon-btn small" data-act="hint-close" aria-label="Tipp schließen">${ICON.close}</button>
-  </section>`;
+/* ---- Als App auf den Startbildschirm (2026-10-19) ----
+   iPhone/iPad: Text-Tipp (Teilen → Zum Home-Bildschirm). Android: Chrome und Samsung Internet melden »beforeinstallprompt« –
+   dann ein Knopf »App installieren«, der den Dialog von Android öffnet; bis dahin (Chrome erst nach einem Tippen und etwa
+   30 s auf der Seite) und in Firefox ein Text-Tipp mit dem Menüweg des Browsers. PC: nichts. Als App geöffnet: nichts. */
+const UA = navigator.userAgent;
+const isIOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(UA);
+const androidBrowser = /SamsungBrowser/i.test(UA) ? 'samsung' : /Firefox/i.test(UA) ? 'firefox' : 'chrome';
+const standalone = () => !!navigator.standalone ||
+  ['standalone', 'fullscreen', 'minimal-ui'].some(m => window.matchMedia(`(display-mode: ${m})`).matches);
+let installEvent = null;
+window.addEventListener('beforeinstallprompt', e => {
+  if (!isAndroid) return;                 // PC: der Browser zeigt sein eigenes Symbol in der Adressleiste
+  e.preventDefault();                     // statt der kleinen Chrome-Leiste unser Knopf
+  installEvent = e;
+  refreshInstall();
+});
+window.addEventListener('appinstalled', () => { installEvent = null; S.installed = true; save(); refreshInstall(); });
+
+const INSTALL_STEPS = {
+  ios: 'Tippe auf <b>Teilen</b> (das Quadrat mit dem Pfeil) und dann auf <b>»Zum Home-Bildschirm«</b>.',
+  chrome: 'Tippe oben rechts auf <b>⋮</b> und dann auf <b>»App installieren«</b> (oder »Zum Startbildschirm hinzufügen«).',
+  samsung: 'Tippe unten auf <b>≡</b>, dann auf <b>»Seite hinzufügen zu«</b> und <b>»Startbildschirm«</b>.',
+  firefox: 'Tippe auf <b>⋮</b> und dann auf <b>»Installieren«</b> (oder »Zum Startbildschirm hinzufügen«).',
+};
+const installable = () => (isIOS || isAndroid) && !standalone();
+/* where = 'home' (Karte auf der Startseite, schließbar) | 'set' (Abschnitt in den Einstellungen) */
+function installInner(where) {
+  if (!installable()) return '';
+  if (S.installed && !installEvent) {
+    return where === 'set' ? `<p class="set-note">Einmaleins ist schon installiert – öffne es über das Symbol auf dem Startbildschirm.</p>` : '';
+  }
+  const close = where === 'home' ? `<button class="icon-btn small" data-act="hint-close" aria-label="Tipp schließen">${ICON.close}</button>` : '';
+  if (isAndroid && installEvent) {
+    return `<div class="hint ${where === 'home' ? 'card' : 'flat'}">
+      <span class="hint-ic">${ICON.install}</span>
+      <div class="hint-body"><p><b>Als App installieren:</b> Dann liegt Einmaleins auf dem Startbildschirm und funktioniert auch ohne Internet.</p>
+        <button class="btn primary" data-act="install">${ICON.install}<span>App installieren</span></button></div>
+      ${close}</div>`;
+  }
+  const steps = INSTALL_STEPS[isIOS ? 'ios' : androidBrowser];
+  return `<div class="hint ${where === 'home' ? 'card' : 'flat'}">
+    <span class="hint-ic">${isIOS ? ICON.share : ICON.install}</span>
+    <div class="hint-body"><p><b>${where === 'home' ? 'Tipp' : 'So geht’s'}:</b> ${steps} Dann ist Einmaleins wie eine echte App da und funktioniert auch ohne Internet.</p></div>
+    ${close}</div>`;
+}
+const installHomeHTML = () => (S.hintClosed ? '' : installInner('home'));
+function installSetHTML() {
+  const inner = installInner('set');
+  return inner ? `<section class="set-group"><h3>Auf den ${isIOS ? 'Home-Bildschirm' : 'Startbildschirm'}</h3>${inner}</section>` : '';
+}
+function refreshInstall() {
+  const home = document.getElementById('install-home');
+  if (home) home.innerHTML = installHomeHTML();
+  const set = document.getElementById('install-set');
+  if (set) set.innerHTML = installSetHTML();
 }
 
 /* ---------------------------------------------------------------- Reihe */
@@ -885,6 +934,7 @@ function settingsHTML() {
         <button class="btn ghost" data-act="test-sound">${ICON.speaker}<span>Ton testen</span></button>
         <p class="set-note">Auf dem iPhone: Ist kein Ton zu hören, die Lautstärke-Tasten probieren oder den Stumm-Schalter ausschalten.</p>
       </section>
+      <div id="install-set">${installSetHTML()}</div>
       <section class="set-group"><h3>Fortschritt</h3>
         <button class="btn danger" data-act="reset">Fortschritt löschen</button>
       </section>
@@ -1020,7 +1070,17 @@ function onClick(e) {
       S.facts = {}; S.best = {}; S.mastered = {}; save();
       closeSheet(true); nav('home', {}, false);
       break;
-    case 'hint-close': S.hintClosed = true; save(); b.closest('.hint').remove(); break;
+    case 'hint-close': S.hintClosed = true; save(); refreshInstall(); break;
+    case 'install': {
+      const ev = installEvent;
+      if (!ev) break;
+      installEvent = null;                // ein Ereignis darf nur einmal fragen; Android meldet später ein neues
+      try {
+        ev.prompt();
+        ev.userChoice.then(c => { if (c && c.outcome === 'accepted') { S.installed = true; save(); } refreshInstall(); }).catch(refreshInstall);
+      } catch (err) { refreshInstall(); }
+      break;
+    }
   }
 }
 document.addEventListener('keydown', e => {

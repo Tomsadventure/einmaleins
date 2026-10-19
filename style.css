@@ -285,9 +285,11 @@ h1, h2, h3, p { margin: 0; }
   font-size: 15px;
   color: var(--muted);
 }
+.hint.flat { margin-top: 2px; padding: 4px 0; }
 .hint b { color: var(--ink); font-weight: 600; }
 .hint-ic { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 12px; background: var(--paper); color: #2E63E6; }
-.hint p { flex: 1; }
+.hint-body { flex: 1; padding-top: 2px; }
+.hint-body .btn { margin-top: 12px; height: 46px; padding: 0 20px; font-size: 16px; }
 .foot { margin-top: 30px; color: var(--muted); font-size: 13px; text-align: center; }
 
 /* --------------------------------------------------------------- Reihe */
